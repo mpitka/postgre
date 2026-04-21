@@ -13,11 +13,26 @@ SELECT xmlelement(
                 xmlelement(name "v3:lastname", p.last_name)
             ),
             xmlelement(name "gender", gender),
-			xmlelement(name "dateOfBirth", p.date_of_birth),
-			xmlelement(name "nationality", p.nationality),
-			xmlelement(name "employeeStartDate", employee_start_date),
-			xmlelement(name "systemLeavingDate", system_leaving_date),
-			xmlelement(name "academicProfessionEntry", academic_profession_entry),
+			CASE
+				WHEN p.date_of_birth IS NOT NULL THEN
+					xmlelement(name "dateOfBirth", p.date_of_birth)
+			END,
+			CASE
+				WHEN p.nationality IS NOT NULL THEN
+					xmlelement(name "nationality", p.nationality)
+			END,
+			CASE
+				WHEN p.employee_start_date IS NOT NULL THEN
+					xmlelement(name "employeeStartDate", employee_start_date)
+			END,
+			CASE
+				WHEN p.system_leaving_date IS NOT NULL THEN
+					xmlelement(name "systemLeavingDate", system_leaving_date)
+			END,
+			CASE
+				WHEN p.academic_profession_entry IS NOT NULL THEN
+					xmlelement(name "academicProfessionEntry", academic_profession_entry)
+			END,
             xmlelement(
                 name "organisationAssociation",
                     
