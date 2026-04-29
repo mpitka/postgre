@@ -6,36 +6,150 @@ WITH person_ids_agg AS (
             )
         ) AS ids_xml FROM person_ids GROUP BY person_id
 ),
+person_names_agg AS (
+    SELECT person_id,
+	xmlagg(
+		xmlelement(
+			name "classifiedName", xmlattributes('classifiedAssoc1' AS id),
+			xmlelement(
+				name "name",
+				xmlelement(name "v3:firstname", first_name),
+				xmlelement(name "v3:lastname", last_name)
+			),
+			xmlelement(name "typeClassification", type)
+		)
+	) AS names_xml FROM person_names GROUP BY person_id
+),
 sta_agg AS (
     SELECT person_id,
-        xmlagg(
-        	xmlelement(
-				name "staffOrganisationAssociation", xmlattributes(affiliation_id as id),
-				xmlelement(name "employmentType", employment_type),
-				xmlelement(
-					name "organisation",
-					xmlelement(name "v3:source_id", org_source_id)
-				),
-				xmlelement(
-					name "period",
-					xmlelement(name "v3:startDate", period_start_date),
-					CASE
-						WHEN period_end_date IS NOT NULL THEN
-							xmlelement(name "v3:endDate", period_end_date)
-					END
-				),
-				xmlelement(name "staffType", staff_type),
+	xmlagg(
+		xmlelement(
+			name "staffOrganisationAssociation", xmlattributes(id as id),
+			xmlelement(name "affiliationId", affiliation_id),
+			xmlelement(name "employmentType", employment_type),
+			xmlelement(
+				name "organisation",
+				xmlelement(name "v3:source_id", org_source_id)
+			),
+			xmlelement(
+				name "period",
+				xmlelement(name "v3:startDate", period_start_date),
 				CASE
-					WHEN contract_type IS NOT NULL THEN
-						xmlelement(name "contractType", contract_type)
-				END,
-				xmlelement(name "jobTitle", job_title),
-				xmlelement(
-					name "jobDescription", 
-					xmlelement(name "v3:text", job_description)
+					WHEN period_end_date IS NOT NULL THEN
+						xmlelement(name "v3:endDate", period_end_date)
+				END
+			),
+			xmlelement(name "staffType", staff_type),
+			CASE
+				WHEN contract_type IS NOT NULL THEN
+					xmlelement(name "contractType", contract_type)
+			END,
+			xmlelement(name "jobTitle", job_title),
+			xmlelement(
+				name "jobDescription", 
+				xmlelement(name "v3:text", job_description)
+			)
+		)
+	) AS sta_xml FROM staff_org_relation GROUP BY person_id
+),
+stu_agg AS (
+    SELECT person_id,
+	xmlagg(
+		xmlelement(
+			name "studentOrganisationAssociations",	xmlattributes(affiliation_id as id),
+			xmlelement(
+				name "organisation",
+				xmlelement(name "v3:source_id", org_source_id)
+			),
+			xmlelement(
+				name "period",
+				xmlelement(name "v3:startDate", period_start_date),
+				CASE
+					WHEN period_end_date IS NOT NULL THEN
+						xmlelement(name "v3:endDate", period_end_date)
+				END
+			),
+			xmlelement(name "status", status),
+			xmlelement(name "start_year", start_year),							
+			xmlelement(name "programme", programme),
+			xmlelement(name "student_nationality", student_nationality),
+			xmlelement(name "award_gained", award_gained),
+			xmlelement(name "project_title_en", project_title_en),
+			xmlelement(name "award_date", award_date)
+		)
+	) AS stu_xml FROM student_org_relation GROUP BY person_id
+),
+hon_agg AS (
+    SELECT person_id,
+	xmlagg(
+		 xmlelement(
+			name "honoraryOrganisationAssociations", xmlattributes(affiliation_id as id),
+			xmlelement(
+				name "organisation",
+				xmlelement(name "v3:source_id", org_source_id)
+			),
+			xmlelement(
+				name "period",
+				xmlelement(name "v3:startDate", period_start_date),
+				CASE
+					WHEN period_end_date IS NOT NULL THEN
+						xmlelement(name "v3:endDate", period_end_date)
+				END
+			),
+			xmlelement(name "staffType", staff_type),
+			xmlelement(name "employmentType", employment_type),
+			xmlelement(name "job_title", job_title)
+		)
+	) AS hon_xml FROM honorary_staff_org_relation GROUP BY person_id
+),
+vis_agg AS (
+    SELECT person_id,
+	xmlagg(
+		 xmlelement(
+			name "visitingOrganisationAssociations", xmlattributes(affiliation_id as id),
+			xmlelement(
+				name "organisation",
+				xmlelement(name "v3:source_id", org_source_id)
+			),
+			xmlelement(
+				name "period",
+				xmlelement(name "v3:startDate", period_start_date),
+				CASE
+					WHEN period_end_date IS NOT NULL THEN
+						xmlelement(name "v3:endDate", period_end_date)
+				END
+			),
+			xmlelement(name "employmentType", employment_type),
+			xmlelement(name "job_title", job_title)
+		)
+	) AS vis_xml FROM visiting_scholar_org_relation GROUP BY person_id
+),
+person_edu_agg AS (
+    SELECT person_id,
+    xmlagg(
+		xmlelement(
+			name "personEducation", xmlattributes(person_id AS id),
+			xmlelement(name "qualification", qualification),
+			xmlelement(name "awardDate", award_date),
+			xmlelement(name "organisations",
+				xmlelement(name "organisation",
+					xmlelement(name "v3:source_id", org_source_id)
 				)
 			)
-        ) AS sta_xml FROM staff_org_relation GROUP BY person_id
+		)
+	) AS edu_xml FROM person_educations GROUP BY person_id
+),
+person_kw_agg AS (
+    SELECT person_id,
+    xmlagg(
+		xmlelement(
+			name "v3:logicalGroup", xmlattributes(logical_name AS "logicalName"),
+			xmlelement(
+				name "v3:structuredKeywords",
+				xmlelement(name "v3:structuredKeyword", xmlattributes(type AS classification))
+			)
+		)
+	) AS kw_xml FROM person_keywords GROUP BY person_id
 )
 
 
@@ -54,16 +168,8 @@ SELECT xmlelement(
                 xmlelement(name "v3:lastname", p.last_name)
             ),
 			xmlelement(
-                name "names",
-				xmlelement(
-					name "classifiedName", xmlattributes('classifiedAssoc1' AS id),
-					xmlelement(
-						name "name",
-						xmlelement(name "v3:firstname", n.first_name),
-	                	xmlelement(name "v3:lastname", n.last_name)
-					),
-					xmlelement(name "typeClassification", n.type)
-				)
+				name "names", n.names_xml
+
             ),
 			
             xmlelement(name "gender", gender),
@@ -121,80 +227,20 @@ SELECT xmlelement(
                 name "organisationAssociations",
                     
                 CASE
-                    WHEN sta.person_id IS NOT NULL THEN
-						xmlelement(
-							name "staffOrganisationAssociation", sta.sta_xml
-						)
+                    WHEN sta.person_id IS NOT NULL THEN	sta.sta_xml
 				END,
                     
                 CASE    
-                    WHEN stu.person_id IS NOT NULL THEN
-                        xmlelement(
-                            name "studentOrganisationAssociations",	xmlattributes(stu.affiliation_id as id),
-							xmlelement(
-								name "organisation",
-								xmlelement(name "v3:source_id", stu.org_source_id)
-							),
-							xmlelement(
-								name "period",
-								xmlelement(name "v3:startDate", stu.period_start_date),
-								CASE
-									WHEN stu.period_end_date IS NOT NULL THEN
-										xmlelement(name "v3:endDate", stu.period_end_date)
-								END
-							),
-                            xmlelement(name "status", stu.status),
-							xmlelement(name "start_year", stu.start_year),							
-							xmlelement(name "programme", stu.programme),
-							xmlelement(name "student_nationality", stu.student_nationality),
-                            xmlelement(name "award_gained", stu.award_gained),
-                            xmlelement(name "project_title_en", stu.project_title_en),
-                            xmlelement(name "award_date", stu.award_date)
-						)
+                    WHEN stu.person_id IS NOT NULL THEN stu.stu_xml
                 END,
                     
                 CASE
-                    WHEN hon.person_id IS NOT NULL THEN
-                        xmlelement(
-                            name "honoraryOrganisationAssociations", xmlattributes(hon.affiliation_id as id),
-							xmlelement(
-								name "organisation",
-								xmlelement(name "v3:source_id", hon.org_source_id)
-							),
-							xmlelement(
-								name "period",
-								xmlelement(name "v3:startDate", hon.period_start_date),
-								CASE
-									WHEN hon.period_end_date IS NOT NULL THEN
-										xmlelement(name "v3:endDate", hon.period_end_date)
-								END
-							),
-							xmlelement(name "staffType", hon.staff_type),
-							xmlelement(name "employmentType", hon.employment_type),
-							xmlelement(name "job_title", hon.job_title)
-                        )
+                    WHEN hon.person_id IS NOT NULL THEN hon.hon_xml
                 END,
                     
                 CASE
-                    WHEN vis.person_id IS NOT NULL THEN
-                        xmlelement(
-                            name "visitingOrganisationAssociations", xmlattributes(vis.affiliation_id as id),
-							xmlelement(
-								name "organisation",
-								xmlelement(name "v3:source_id", vis.org_source_id)
-							),
-							xmlelement(
-								name "period",
-								xmlelement(name "v3:startDate", vis.period_start_date),
-								CASE
-									WHEN vis.period_end_date IS NOT NULL THEN
-										xmlelement(name "v3:endDate", vis.period_end_date)
-								END
-							),
-							xmlelement(name "employmentType", vis.employment_type),
-							xmlelement(name "job_title", vis.job_title)
-                        )
-                END
+                    WHEN vis.person_id IS NOT NULL THEN vis.vis_xml
+				END
             ),
 			
 			CASE
@@ -204,43 +250,17 @@ SELECT xmlelement(
 
 			CASE    
 				WHEN edu.person_id IS NOT NULL THEN
-					xmlelement(
-                		name "personEducations",
-						xmlelement(
-							name "personEducation", xmlattributes(edu.person_id AS id),
-							xmlelement(name "qualification", edu.qualification),
-							xmlelement(name "awardDate", edu.award_date),
-							xmlelement(name "organisations",
-								xmlelement(name "organisation",
-									xmlelement(name "v3:source_id", edu.org_source_id)
-								)
-							)
-						)
-					)
+					xmlelement(name "personEducations", edu.edu_xml)
 			END,
 			
 			CASE
-				WHEN kw.logical_name IS NOT NULL THEN
-					xmlelement(
-					    name "keywords",
-					    xmlelement(
-							name "v3:logicalGroup", xmlattributes(kw.logical_name AS "logicalName"),
-							xmlelement(
-								name "v3:structuredKeywords",
-								xmlelement(name "v3:structuredKeyword", xmlattributes(kw.type AS classification))
-							)
-						)
-					)
+				WHEN kw.person_id IS NOT NULL THEN
+					xmlelement(name "keywords", kw.kw_xml)
 			END,
 			
 			-- xmlelement(
-			    -- name "personIds",
-			    -- xmlelement(name "v3:id", xmlattributes(ids_xml.type AS type, ids.id AS id), ids.value)
-			-- ),
 
-			xmlelement(
-				name personIds, ids.ids_xml
-			),
+			xmlelement(name "personIds", ids.ids_xml),
 
 			CASE
 				WHEN p.orcid IS NOT NULL THEN
@@ -256,11 +276,11 @@ SELECT xmlelement(
 )
 FROM person_data p 
 left join person_ids_agg ids on ids.person_id = p.person_id
-left join person_names n on n.person_id = p.person_id
+left join person_names_agg n on n.person_id = p.person_id
 left join sta_agg sta on sta.person_id = p.person_id
-left join student_org_relation stu on stu.person_id = p.person_id
-left join honorary_staff_org_relation hon on hon.person_id = p.person_id
-left join visiting_scholar_org_relation vis on vis.person_id = p.person_id
-left join person_educations edu on edu.person_id = p.person_id
-left join person_keywords kw on kw.person_id = p.person_id
+left join stu_agg stu on stu.person_id = p.person_id
+left join hon_agg hon on hon.person_id = p.person_id
+left join vis_agg vis on vis.person_id = p.person_id
+left join person_edu_agg edu on edu.person_id = p.person_id
+left join person_kw_agg kw on kw.person_id = p.person_id
 where p.person_id='29603';
