@@ -1,3 +1,5 @@
+-- dbsync -> Pure
+
 WITH person_ids_agg AS (
     SELECT person_id,
         xmlagg(
@@ -10,7 +12,7 @@ person_names_agg AS (
     SELECT person_id,
 	xmlagg(
 		xmlelement(
-			name "classifiedName", xmlattributes('classifiedAssoc1' AS id),
+			name "classifiedName", xmlattributes(id AS id),
 			xmlelement(
 				name "name",
 				xmlelement(name "v3:firstname", first_name),
@@ -27,6 +29,7 @@ sta_agg AS (
 			name "staffOrganisationAssociation", xmlattributes(id as id),
 			xmlelement(name "affiliationId", affiliation_id),
 			xmlelement(name "employmentType", employment_type),
+			xmlelement(name "primaryAssociation", primary_association),
 			xmlelement(
 				name "organisation",
 				xmlelement(name "v3:source_id", org_source_id)
@@ -56,7 +59,7 @@ stu_agg AS (
     SELECT person_id,
 	xmlagg(
 		xmlelement(
-			name "studentOrganisationAssociations",	xmlattributes(affiliation_id as id),
+			name "studentOrganisationAssociation",	xmlattributes(affiliation_id as id),
 			xmlelement(
 				name "organisation",
 				xmlelement(name "v3:source_id", org_source_id)
@@ -69,13 +72,34 @@ stu_agg AS (
 						xmlelement(name "v3:endDate", period_end_date)
 				END
 			),
-			xmlelement(name "status", status),
-			xmlelement(name "start_year", start_year),							
-			xmlelement(name "programme", programme),
-			xmlelement(name "student_nationality", student_nationality),
-			xmlelement(name "award_gained", award_gained),
-			xmlelement(name "project_title_en", project_title_en),
-			xmlelement(name "award_date", award_date)
+			CASE
+				WHEN status IS NOT NULL THEN
+					xmlelement(name "status", status)
+			END,
+			CASE
+				WHEN start_year IS NOT NULL THEN
+					xmlelement(name "startYear", start_year)							
+			END,
+			CASE
+				WHEN programme IS NOT NULL THEN
+					xmlelement(name "programme", programme)
+			END,
+			-- CASE
+			--	WHEN student_nationality IS NOT NULL OR student_nationality <>'' THEN
+			--		xmlelement(name "studentNationality", student_nationality)
+			-- END,
+			CASE
+				WHEN award_gained IS NOT NULL THEN
+					xmlelement(name "awardGained", award_gained)
+			END,
+			CASE
+				WHEN project_title_en IS NOT NULL THEN
+					xmlelement(name "projectTitle", project_title_en)
+			END,
+			CASE
+				WHEN award_date IS NOT NULL THEN
+					xmlelement(name "awardDate", award_date)
+			END
 		)
 	) AS stu_xml FROM student_org_relation GROUP BY person_id
 ),
@@ -83,7 +107,7 @@ hon_agg AS (
     SELECT person_id,
 	xmlagg(
 		 xmlelement(
-			name "honoraryOrganisationAssociations", xmlattributes(affiliation_id as id),
+			name "honoraryOrganisationAssociation", xmlattributes(affiliation_id as id),
 			xmlelement(
 				name "organisation",
 				xmlelement(name "v3:source_id", org_source_id)
@@ -106,7 +130,7 @@ vis_agg AS (
     SELECT person_id,
 	xmlagg(
 		 xmlelement(
-			name "visitingOrganisationAssociations", xmlattributes(affiliation_id as id),
+			name "visitingOrganisationAssociation", xmlattributes(affiliation_id as id),
 			xmlelement(
 				name "organisation",
 				xmlelement(name "v3:source_id", org_source_id)
@@ -128,7 +152,7 @@ person_edu_agg AS (
     SELECT person_id,
     xmlagg(
 		xmlelement(
-			name "personEducation", xmlattributes(person_id AS id),
+			name "personEducation", xmlattributes(id AS id),
 			xmlelement(name "qualification", qualification),
 			xmlelement(name "awardDate", award_date),
 			xmlelement(name "organisations",
@@ -257,8 +281,6 @@ SELECT xmlelement(
 				WHEN kw.person_id IS NOT NULL THEN
 					xmlelement(name "keywords", kw.kw_xml)
 			END,
-			
-			-- xmlelement(
 
 			xmlelement(name "personIds", ids.ids_xml),
 
@@ -283,4 +305,4 @@ left join hon_agg hon on hon.person_id = p.person_id
 left join vis_agg vis on vis.person_id = p.person_id
 left join person_edu_agg edu on edu.person_id = p.person_id
 left join person_kw_agg kw on kw.person_id = p.person_id
-where p.person_id='29603';
+where p.person_id='101079';
