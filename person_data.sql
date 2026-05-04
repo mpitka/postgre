@@ -42,16 +42,25 @@ sta_agg AS (
 						xmlelement(name "v3:endDate", period_end_date)
 				END
 			),
-			xmlelement(name "staffType", staff_type),
+			CASE
+				WHEN staff_type IS NOT NULL THEN
+					xmlelement(name "staffType", staff_type)
+			END,
 			CASE
 				WHEN contract_type IS NOT NULL THEN
 					xmlelement(name "contractType", contract_type)
 			END,
-			xmlelement(name "jobTitle", job_title),
-			xmlelement(
-				name "jobDescription", 
-				xmlelement(name "v3:text", job_description)
-			)
+			CASE
+				WHEN job_title IS NOT NULL THEN
+					xmlelement(name "jobTitle", job_title)
+			END,
+			CASE
+				WHEN job_description IS NOT NULL THEN
+					xmlelement(
+						name "jobDescription", 
+						xmlelement(name "v3:text", job_description)
+					)
+			END
 		)
 	) AS sta_xml FROM staff_org_relation GROUP BY person_id
 ),
@@ -59,7 +68,8 @@ stu_agg AS (
     SELECT person_id,
 	xmlagg(
 		xmlelement(
-			name "studentOrganisationAssociation",	xmlattributes(affiliation_id as id),
+			name "studentOrganisationAssociation",	xmlattributes(id as id),
+			xmlelement(name "affiliationId", affiliation_id),
 			xmlelement(
 				name "organisation",
 				xmlelement(name "v3:source_id", org_source_id)
@@ -107,7 +117,10 @@ hon_agg AS (
     SELECT person_id,
 	xmlagg(
 		 xmlelement(
-			name "honoraryOrganisationAssociation", xmlattributes(affiliation_id as id),
+			name "honoraryOrganisationAssociation", xmlattributes(id as id),
+			xmlelement(name "affiliationId", affiliation_id),
+			xmlelement(name "employmentType", employment_type),
+			xmlelement(name "primaryAssociation", primary_association),
 			xmlelement(
 				name "organisation",
 				xmlelement(name "v3:source_id", org_source_id)
@@ -120,9 +133,14 @@ hon_agg AS (
 						xmlelement(name "v3:endDate", period_end_date)
 				END
 			),
-			xmlelement(name "staffType", staff_type),
-			xmlelement(name "employmentType", employment_type),
-			xmlelement(name "job_title", job_title)
+			CASE
+				WHEN staff_type IS NOT NULL THEN
+					xmlelement(name "staffType", staff_type)
+			END,
+			CASE
+				WHEN job_title IS NOT NULL THEN
+					xmlelement(name "jobTitle", job_title)
+			END		
 		)
 	) AS hon_xml FROM honorary_staff_org_relation GROUP BY person_id
 ),
@@ -130,7 +148,10 @@ vis_agg AS (
     SELECT person_id,
 	xmlagg(
 		 xmlelement(
-			name "visitingOrganisationAssociation", xmlattributes(affiliation_id as id),
+			name "visitingOrganisationAssociation", xmlattributes(id as id),
+			xmlelement(name "affiliationId", affiliation_id),
+			xmlelement(name "employmentType", employment_type),
+			xmlelement(name "primaryAssociation", primary_association),
 			xmlelement(
 				name "organisation",
 				xmlelement(name "v3:source_id", org_source_id)
@@ -143,8 +164,10 @@ vis_agg AS (
 						xmlelement(name "v3:endDate", period_end_date)
 				END
 			),
-			xmlelement(name "employmentType", employment_type),
-			xmlelement(name "job_title", job_title)
+			CASE
+				WHEN job_title IS NOT NULL THEN
+					xmlelement(name "jobTitle", job_title)
+			END			
 		)
 	) AS vis_xml FROM visiting_scholar_org_relation GROUP BY person_id
 ),
@@ -305,4 +328,4 @@ left join hon_agg hon on hon.person_id = p.person_id
 left join vis_agg vis on vis.person_id = p.person_id
 left join person_edu_agg edu on edu.person_id = p.person_id
 left join person_kw_agg kw on kw.person_id = p.person_id
-where p.person_id='101079';
+where p.person_id='97043';
