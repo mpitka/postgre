@@ -1,4 +1,4 @@
--- dbsync -> Pure
+-- persons: dbsync -> Pure
 
 WITH person_ids_agg AS (
     SELECT person_id,
@@ -70,6 +70,7 @@ stu_agg AS (
 		xmlelement(
 			name "studentOrganisationAssociation",	xmlattributes(id as id),
 			xmlelement(name "affiliationId", affiliation_id),
+			xmlelement(name "primaryAssociation", primary_association),
 			xmlelement(
 				name "organisation",
 				xmlelement(name "v3:source_id", org_source_id)
@@ -178,11 +179,15 @@ person_edu_agg AS (
 			name "personEducation", xmlattributes(id AS id),
 			xmlelement(name "qualification", qualification),
 			xmlelement(name "awardDate", award_date),
-			xmlelement(name "organisations",
-				xmlelement(name "organisation",
-					xmlelement(name "v3:source_id", org_source_id)
-				)
-			)
+			
+			CASE 
+				WHEN org_source_id IS NOT NULL THEN
+					xmlelement(name "organisations",
+						xmlelement(name "organisation",
+							xmlelement(name "v3:source_id", org_source_id)
+						)
+					)
+			END
 		)
 	) AS edu_xml FROM person_educations GROUP BY person_id
 ),
@@ -197,6 +202,19 @@ person_kw_agg AS (
 			)
 		)
 	) AS kw_xml FROM person_keywords GROUP BY person_id
+),
+person_profile_agg AS (
+    SELECT person_id,
+    xmlagg(
+		xmlelement(
+			name "personCustomField", xmlattributes(id as id),
+			xmlelement(name "typeClassification", type),
+			xmlelement(name "value", 
+				xmlelement(name "v3:text", xmlattributes('en' as lang, 'GB' as country), value_en),
+				xmlelement(name "v3:text", xmlattributes('fi' as lang, 'FI' as country), value_fi)	
+			)
+		)
+	) AS prof_xml FROM person_profile_information GROUP BY person_id
 )
 
 
@@ -214,10 +232,11 @@ SELECT xmlelement(
                 xmlelement(name "v3:firstname", p.first_name),
                 xmlelement(name "v3:lastname", p.last_name)
             ),
-			xmlelement(
-				name "names", n.names_xml
 
-            ),
+			CASE
+				WHEN n.person_id IS NOT NULL THEN
+					xmlelement(name "names", n.names_xml)
+			END,
 			
             xmlelement(name "gender", gender),
 
@@ -242,53 +261,60 @@ SELECT xmlelement(
 					xmlelement(name "academicProfessionEntry", academic_profession_entry)
 			END,
 
-			xmlelement(
-                name "privateAddress",
-				CASE
-					WHEN p.country IS NOT NULL THEN
-						xmlelement(name "v3:country", p.country)
-				END,
-				CASE
-					WHEN p.road IS NOT NULL THEN
-						xmlelement(name "v3:road", p.road)
-				END,
-				CASE
-					WHEN p.room IS NOT NULL THEN
-						xmlelement(name "v3:room", p.room)
-				END,
-				CASE
-					WHEN p.city IS NOT NULL THEN
-						xmlelement(name "v3:city", p.city)
-				END,
-				CASE
-					WHEN p.building IS NOT NULL THEN
-						xmlelement(name "v3:building", p.building)
-				END,
-				CASE
-					WHEN p.postal_code IS NOT NULL THEN
-						xmlelement(name "v3:postalCode", p.postal_code)
-				END
-			),
+			--CASE
+				--WHEN p.country IS NOT NULL OR p.road IS NOT NULL OR p.room IS NOT NULL OR p.city IS NOT NULL 
+				--OR p.building IS NOT NULL OR p.postal_code IS NOT NULL THEN
+					xmlelement(
+		                name "privateAddress",
+						CASE
+							WHEN p.country IS NOT NULL THEN
+								xmlelement(name "v3:country", p.country)
+						END,
+						CASE
+							WHEN p.road IS NOT NULL THEN
+								xmlelement(name "v3:road", p.road)
+						END,
+						CASE
+							WHEN p.room IS NOT NULL THEN
+								xmlelement(name "v3:room", p.room)
+						END,
+						CASE
+							WHEN p.city IS NOT NULL THEN
+								xmlelement(name "v3:city", p.city)
+						END,
+						CASE
+							WHEN p.building IS NOT NULL THEN
+								xmlelement(name "v3:building", p.building)
+						END,
+						CASE
+							WHEN p.postal_code IS NOT NULL THEN
+								xmlelement(name "v3:postalCode", p.postal_code)
+						END
+					),
+			--END,
 
-            xmlelement(
-                name "organisationAssociations",
-                    
-                CASE
-                    WHEN sta.person_id IS NOT NULL THEN	sta.sta_xml
-				END,
-                    
-                CASE    
-                    WHEN stu.person_id IS NOT NULL THEN stu.stu_xml
-                END,
-                    
-                CASE
-                    WHEN hon.person_id IS NOT NULL THEN hon.hon_xml
-                END,
-                    
-                CASE
-                    WHEN vis.person_id IS NOT NULL THEN vis.vis_xml
-				END
-            ),
+			CASE
+				WHEN sta.person_id IS NOT NULL OR stu.person_id IS NOT NULL OR hon.person_id IS NOT NULL OR vis.person_id IS NOT NULL THEN
+		            xmlelement(
+		                name "organisationAssociations",
+							
+			                CASE
+			                    WHEN sta.person_id IS NOT NULL THEN	sta.sta_xml
+							END,
+			                    
+			                CASE    
+			                    WHEN stu.person_id IS NOT NULL THEN stu.stu_xml
+			                END,
+			                    
+			                CASE
+			                    WHEN hon.person_id IS NOT NULL THEN hon.hon_xml
+			                END,
+			                    
+			                CASE
+			                    WHEN vis.person_id IS NOT NULL THEN vis.vis_xml
+							END
+					)
+			END,
 			
 			CASE
 				WHEN p.affiliation_note IS NOT NULL THEN
@@ -299,23 +325,28 @@ SELECT xmlelement(
 				WHEN edu.person_id IS NOT NULL THEN
 					xmlelement(name "personEducations", edu.edu_xml)
 			END,
-			
+
+			CASE
+				WHEN prof.person_id IS NOT NULL THEN
+					xmlelement(name "profileInformation", prof.prof_xml)
+			END,
+
 			CASE
 				WHEN kw.person_id IS NOT NULL THEN
 					xmlelement(name "keywords", kw.kw_xml)
 			END,
 
-			xmlelement(name "personIds", ids.ids_xml),
+			CASE
+				WHEN ids.person_id IS NOT NULL THEN
+					xmlelement(name "personIds", ids.ids_xml)
+			END,
 
 			CASE
 				WHEN p.orcid IS NOT NULL THEN
-					xmlelement(
-						name "orcId", 
-						xmlelement(name "v1:orcId", orcid)
-					)
+					xmlelement(name "orcId", orcid)
 			END,
 
-			xmlelement(name "visibility", initcap(visibility))
+			xmlelement(name "visibility", initcap(visibility)) 
         )
     )
 )
@@ -327,5 +358,6 @@ left join stu_agg stu on stu.person_id = p.person_id
 left join hon_agg hon on hon.person_id = p.person_id
 left join vis_agg vis on vis.person_id = p.person_id
 left join person_edu_agg edu on edu.person_id = p.person_id
-left join person_kw_agg kw on kw.person_id = p.person_id
-where p.person_id='97043';
+left join person_profile_agg prof on prof.person_id = p.person_id
+left join person_kw_agg kw on kw.person_id = p.person_id;
+--where p.person_id='97639';
