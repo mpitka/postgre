@@ -315,6 +315,25 @@ SELECT xmlelement(
 							END
 					)
 			END,
+
+			CASE
+				WHEN sta.person_id IS NULL AND stu.person_id IS NULL AND hon.person_id IS NULL AND vis.person_id IS NULL THEN
+				xmlelement(
+					name "organisationAssociations",
+		            xmlelement(
+						name "staffOrganisationAssociation", xmlattributes('63b0f8b7-1eef-4624-9515-63d3a309bd26' as id),
+						xmlelement(
+							name "organisation",
+							xmlelement(name "v3:source_id", 'TEMP_2026-05-13')
+						),
+						xmlelement(
+							name "period",
+							xmlelement(name "v3:startDate", '2026-05-13')
+						),
+						xmlelement(name "staffType", 'non-academic')
+					)
+				)
+			END,
 			
 			CASE
 				WHEN p.affiliation_note IS NOT NULL THEN

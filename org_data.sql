@@ -77,7 +77,7 @@ SELECT xmlelement(
 				CASE
 					WHEN ids.organisation_id IS NOT NULL THEN
 						xmlelement(name "ids", ids.ids_xml)
-				
+				END
 		)
 	)
 )
